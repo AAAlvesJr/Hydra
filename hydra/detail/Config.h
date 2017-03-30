@@ -64,8 +64,8 @@
  #include <thrust/system/cuda/experimental/pinned_allocator.h>
 #endif
 
-#if THRUST_DEVICE_SYSTEM==THRUST_DEVICE_SYSTEM_OMP || THRUST_HOST_SYSTEM==THRUST_HOST_SYSTEM_OMP
- #include <omp.h>
+#if (THRUST_DEVICE_COMPILER_IS_OMP_CAPABLE == THRUST_TRUE)
+#include <omp.h>
 #endif
 
 #ifndef HYDRA_CERROR_LOG

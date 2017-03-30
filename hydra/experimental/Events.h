@@ -39,14 +39,15 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <omp.h>
 #include <iostream>
 #include <ostream>
 #include <algorithm>
 #include <time.h>
 #include <stdio.h>
 #include <utility>
+
 #include <thrust/copy.h>
+#include <thrust/detail/config.h>
 
 #include <hydra/detail/Config.h>
 #include <hydra/Types.h>
@@ -56,6 +57,11 @@
 #include <hydra/detail/utility/Utility_Tuple.h>
 #include <hydra/detail/functors/FlagAcceptReject.h>
 #include <hydra/experimental/multivector.h>
+
+
+#if (THRUST_DEVICE_COMPILER_IS_OMP_CAPABLE == THRUST_TRUE)
+#include <omp.h>
+#endif
 
 namespace hydra {
 

@@ -40,7 +40,6 @@
 #include <vector>
 #include <string>
 #include <map>
-#include <omp.h>
 #include <iostream>
 #include <ostream>
 #include <algorithm>
@@ -64,14 +63,16 @@
 
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/iterator/counting_iterator.h>
+#include <thrust/detail/config.h>
 #include <thrust/tuple.h>
 #include <thrust/extrema.h>
 #include <thrust/random.h>
 #include <thrust/distance.h>
 
-
+#if (THRUST_DEVICE_COMPILER_IS_OMP_CAPABLE == THRUST_TRUE)
+#include <omp.h>
 #include <thrust/system/omp/execution_policy.h>
-
+#endif
 
 
 
