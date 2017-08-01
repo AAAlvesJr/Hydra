@@ -1,11 +1,11 @@
 Hydra
 =========
 
-<img src="Hydra.jpg" width="200">
+<img src="logo_Hydra.svg" width="200">
 
 What is it?
 -----------
-Hydra is an header only library designed for data analysis. The library makes use of Thrust and can deploy OpenMP
+Hydra is a header-only library designed for data analysis. The library makes use of Thrust and can deploy OpenMP
 threads, CUDA and Xeon Phi cores. It is focused on performance and precision. 
 
 The libray core algorithms follow as close as is possible the implementations widely available in framworks like ROOT, and libraries 
@@ -35,12 +35,12 @@ Many other possibilities and functionaties can be achivied combining the core co
 Hydra and Thrust
 ----------------
 
-Hydra is implemented on top of the [Thrust library](https://thrust.github.io/) and rely strongly on Thrust's containers, algorithms and backend managment systems.
+Hydra is implemented on top of the [Thrust library](https://thrust.github.io/) and relies strongly on Thrust's containers, algorithms and backend managment systems.
 The function evaluation algorithms implemented in Hydra uses tuples to build and process datasets with mixed different types. This allow to manage  
 performance degradation associated to memory access and at same time keep flexibility.   
 
-The official version of Thrust supports tuples with maximum ten elements. In order to overcome this limitation, Hydra uses the 
-[unoficial version, forked from the original, by Andrew Currigan and collaborators](https://github.com/andrewcorrigan/thrust-multi-permutation-iterator). 
+The official version of Thrust supports tuples with a maximum of ten elements. In order to overcome this limitation, Hydra uses the 
+[unofficial version, forked from the original, by Andrew Currigan and collaborators](https://github.com/andrewcorrigan/thrust-multi-permutation-iterator). 
 This version implements variadic tuples and related classes, as well as provides some additional functionalities, which are missing in the official Thrust.
 
 The version of Thrust distributed with Hydra is maintained by [MultithreadCorner](https://github.com/MultithreadCorner). It is basically 
