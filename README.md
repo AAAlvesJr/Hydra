@@ -1,7 +1,7 @@
 Hydra
 =========
 
-.. image:: logo_Hydra.png
+![Hydra project logo](logo_Hydra.png)
 
 What is it?
 -----------
