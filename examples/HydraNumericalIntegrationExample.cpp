@@ -50,6 +50,7 @@
 #include <hydra/Containers.h>
 #include <hydra/Function.h>
 #include <hydra/FunctorArithmetic.h>
+#include <hydra/device/System.h>
 #include <hydra/VegasState.h>
 #include <hydra/Vegas.h>
 #include <hydra/Plain.h>
@@ -203,7 +204,7 @@ GInt_t main(int argv, char** argc)
 	//----------------------------------------------------------------------
 	//get integration
 	//Vegas state hold the resources for performing the integration
-	VegasState<N, device> state(_min, _max);
+	VegasState<N, hydra::device::sys_t> state(_min, _max);
 
 	state.SetVerbose(-2);
 	state.SetAlpha(1.5);
@@ -213,7 +214,7 @@ GInt_t main(int argv, char** argc)
 	state.SetCalls( calls );
 	state.SetTrainingCalls( calls/10 );
 	state.SetTrainingIterations(0);
-	Vegas<N, device> vegas(state);
+	Vegas<N, hydra::device::sys_t> vegas(state);
 
 	Gaussian.PrintRegisteredParameters();
 
