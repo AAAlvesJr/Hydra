@@ -80,6 +80,7 @@ public:
 	__host__ __device__ inline void swap(Vector3R& other);
 	__host__      __device__      inline Vector3R& operator*=(const GReal_t c);
 	__host__      __device__      inline Vector3R& operator/=(const GReal_t c);
+	__host__      __device__      inline Vector3R& operator=(const Vector3R& v2);
 	__host__      __device__      inline Vector3R& operator+=(const Vector3R& v2);
 	__host__      __device__      inline Vector3R& operator-=(const Vector3R& v2);
 	__host__ __device__ inline void set(GInt_t i, GReal_t d);

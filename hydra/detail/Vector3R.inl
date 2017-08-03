@@ -33,6 +33,16 @@ namespace hydra {
 
 
 __host__ __device__
+inline Vector3R& Vector3R::operator=(const Vector3R& v2)
+{
+	v[0] = v2.get(0);
+	v[1] = v2.get(1);
+	v[2] = v2.get(2);
+	
+       return *this;
+}
+		       
+__host__ __device__
 inline Vector3R& Vector3R::operator*=(const GReal_t c)
 {
 
