@@ -38,15 +38,15 @@
 
 
 
-#if defined(__CUDACC__) && !(defined(__CUDA__) && defined(__clang__))
+//#if defined(__CUDACC__) && !(defined(__CUDA__) && defined(__clang__))
 
-#define __hydra_exec_check_disable__ #pragma nv_exec_check_disable
+#define __hydra_exec_check_disable__  __thrust_exec_check_disable__
 
-#else
+//#else
 
-#define __hydra_exec_check_disable__
+//#define __hydra_exec_check_disable__
 
-#endif
+//#endif
 
 #if defined(__CUDACC__)
 #define __hydra_align__(n) __align__(n)

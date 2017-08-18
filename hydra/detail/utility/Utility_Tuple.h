@@ -230,6 +230,7 @@ namespace hydra {
 
 	//----------------------------------------
 	template<typename Head,  typename ...Tail,  size_t... Is >
+	__host__ __device__
 	auto dropFirstHelper(thrust::tuple<Head, Tail...> const& t  , index_sequence<Is...> )
 	-> thrust::tuple<Tail...>
 	{
@@ -237,6 +238,7 @@ namespace hydra {
 	}
 
 	template< typename Head,  typename ...Tail>
+	__host__ __device__
 	auto dropFirst( thrust::tuple<Head, Tail...> const& t)
 	-> decltype(dropFirstHelper( t, make_index_sequence<sizeof...(Tail) >{} ))
 	{
@@ -245,14 +247,14 @@ namespace hydra {
 
 	//----------------------------------------
 	template<typename T, typename Head,  typename ...Tail,  size_t... Is >
-	auto changeFirstHelper(T& new_first, thrust::tuple<Head, Tail...> const & t  , index_sequence<Is...> )
+	auto changeFirstHelper(T& new_first, thrust::tuple<Head, Tail...>  const& t  , index_sequence<Is...> )
 	-> thrust::tuple<T,Tail...>
 	{
-		return thrust::tie(new_first, thrust::get<Is+1>(t)... );
+		return thrust::make_tuple(new_first, thrust::get<Is+1>(t)... );
 	}
 
 	template<typename T, typename Head,  typename ...Tail>
-	auto changeFirst(T& new_first, thrust::tuple<Head, Tail...> const & t)
+	auto changeFirst(T& new_first, thrust::tuple<Head, Tail...>  const& t)
 	-> decltype(changeFirstHelper(new_first, t , make_index_sequence<sizeof ...(Tail)>{} ))
 	{
 		return changeFirstHelper(new_first, t , make_index_sequence<sizeof ...(Tail)>{} );
@@ -686,6 +688,7 @@ namespace hydra {
 	 }
 */
 	 //evaluate a tuple of functors and return a tuple of results
+	 __hydra_exec_check_disable__
 	 template< typename Tup, typename ArgType, size_t ... index>
 	 __host__ __device__
 	 inline auto invoke_helper( ArgType& x, Tup& tup, index_sequence<index...>)
@@ -694,6 +697,7 @@ namespace hydra {
 		 return thrust::make_tuple(thrust::get<index>(tup)(x)...);
 	 }
 
+	 __hydra_exec_check_disable__
 	 template< typename Tup, typename ArgType>
 	 __host__  __device__
 	 inline auto invoke(ArgType& x, Tup& tup)
@@ -704,6 +708,7 @@ namespace hydra {
 	 }
 
 	 //evaluate a tuple of functors and return a tuple of results
+	 __hydra_exec_check_disable__
 	 template<typename Tup, typename ArgType1, typename ArgType2, size_t ... index>
 	 __host__ __device__
 	 inline auto invoke_helper( ArgType1& x, ArgType2& y, Tup& tup, index_sequence<index...>)
@@ -712,7 +717,8 @@ namespace hydra {
 		 return  thrust::make_tuple(thrust::get<index>(tup)(x,y)...);
 	 }
 
-	 template<typename Return_type, typename Tup, typename ArgType1, typename ArgType2>
+	 __hydra_exec_check_disable__
+	 template< typename Tup, typename ArgType1, typename ArgType2>
 	 __host__  __device__
 	 inline auto invoke(ArgType1& x, ArgType2& y,  Tup& tup)
 	 -> decltype(invoke_helper( x, y, tup, make_index_sequence< thrust::tuple_size<Tup>::value> { }) )

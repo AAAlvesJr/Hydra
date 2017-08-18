@@ -38,15 +38,13 @@
 namespace hydra {
 
 template<typename InputIterator, typename OutputIterator>
-OutputIterator
-copy(InputIterator first, InputIterator last, OutputIterator result)
+OutputIterator copy(InputIterator first, InputIterator last, OutputIterator result)
 {
 	return thrust::copy(first, last, result);
 }
 
-template<hydra::detail::Backend Backend, typename InputIterator, typename OutputIterator>
-__host__ __device__ OutputIterator
-copy(hydra::detail::BackendPolicy<Backend> const& policy, InputIterator first,
+template<detail::Backend Backend, typename InputIterator, typename OutputIterator>
+OutputIterator copy(hydra::detail::BackendPolicy<Backend> const& policy, InputIterator first,
 		InputIterator last, OutputIterator result)
 {
 	return thrust::copy( policy, first, last, result);

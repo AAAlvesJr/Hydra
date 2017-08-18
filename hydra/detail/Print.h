@@ -69,20 +69,7 @@ public:
 
 	   const char *labels[3] = {"Info", "Warning", "Error"};
 	   return labels[level];
-	  /*
-	   switch (level) {
-	   case INFO:
-		   return "Info";
-		   break;
-	   case WARNING:
-		   return "Warning";
-		   break;
-	   case ERROR:
-		   return "Error";
-		   break;
-	   default:
-		   break;
-	   }*/
+
    }
 
 };
@@ -91,7 +78,7 @@ public:
 }  // namespace hydra
 
 #define HYDRA_LOG(level, str) \
-   if ( level >= hydra::Print::Level()) HYDRA_OS << "\033[1;34m" << "\nHydra["<< hydra::Print::Label(level) << "] from: \n"\
+   if ( level >= Print::Level()) HYDRA_OS << "\033[1;34m" << "\nHydra["<< Print::Label(level) << "] from: \n"\
    << "\033[1;32m" << __PRETTY_FUNCTION__ << '\n' << "\033[1;34m" << "FILE: "<< "\033[1;32m"  << __FILE__ << "\n"\
    << "\033[1;34m" << "LINE :"<< "\033[1;32m"<<__LINE__ << "\033[1;32m"<< "\n" << "\033[1;34m" \
    << "MESSAGE: " << "\033[1;31m" << str <<"\033[0m"<< std::endl << std::endl;

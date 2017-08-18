@@ -202,7 +202,7 @@ struct EvalMother
 		if (N > 2)
 		{
 #pragma unroll N
-			for (GInt_t n = 1; n < N - 1; n++)
+			for (size_t n = 1; n < N - 1; n++)
 			{
 				rno[n] =  uniDist(randEng) ;
 
@@ -315,7 +315,12 @@ struct EvalMother
 		Vector4R Particles[SIZE];
 
 		GReal_t weight = process(evt, Particles);
-		return_tuple_type tmp = hydra::detail::invoke(Particles, fFunctors);
+
+		Tuple_t particles{};
+
+		hydra::detail::assignArrayToTuple(particles, Particles   );
+
+		return_tuple_type tmp = hydra::detail::invoke(particles, fFunctors);
 
 
 		return thrust::tuple_cat(thrust::make_tuple(weight), tmp );

@@ -98,8 +98,6 @@ public:
 		if(this==&other) return *this;
 		BaseFunctor<LambdaWrapper<ReturnType(ArgType...),L, N>, ReturnType,N>::operator=(other);
 
-		this->fLambda = other.GetLambda();
-
 		return *this;
 	}
 
@@ -108,24 +106,39 @@ public:
 	 * Get the underlying lambda
 	 */
 	__host__ __device__	 inline
-	L GetLambda() const {return fLambda; }
+	const L& GetLambda() const {return fLambda; }
 
 
-	template<typename T, size_t M=N>
+	template<size_t M=N, typename T>
 	__host__ __device__ inline
 	typename std::enable_if< (M>0), ReturnType >::type
 	Evaluate(T a) {
 
-		return fLambda(this->GetNumberOfParameters(), this->GetParameters(), a);
+		return fLambda(this->GetNumberOfParameters(), this->GetParameters(),a);
 	}
 
-
-	template<typename T, size_t M=N>
+	template<size_t M=N, typename T>
 	__host__ __device__ inline
-	typename std::enable_if< (M==0), ReturnType >::type
-	Evaluate(T a) {
+	typename std::enable_if< (M>0), ReturnType >::type
+	Evaluate(unsigned int n, T a) {
 
-		return fLambda( a);
+		return fLambda(this->GetNumberOfParameters(), this->GetParameters(),n ,a);
+	}
+
+	template< /*typename T,*/size_t M=N>
+	__host__ __device__ inline
+	typename std::enable_if< (M==0) &&( (sizeof...(ArgType))>1), ReturnType >::type
+	Evaluate(ArgType...a){//unsigned int n, T a) {
+
+		return fLambda( a...);
+	}
+
+	template</*typename T,*/ size_t M=N>
+	__host__ __device__ inline
+	typename std::enable_if< (M==0)&& sizeof...(ArgType)==1, ReturnType >::type
+	Evaluate(ArgType...a) {
+
+		return fLambda( a...);
 	}
 
 

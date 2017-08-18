@@ -41,12 +41,20 @@
 #include <hydra/Vector4R.h>
 #include <hydra/multiarray.h>
 #include <hydra/detail/utility/Utility_Tuple.h>
+#include <hydra/Tuple.h>
 //thrust
 #include <thrust/copy.h>
 #include <thrust/iterator/zip_iterator.h>
 #include <thrust/iterator/reverse_iterator.h>
+#include <thrust/iterator/constant_iterator.h>
+#include <thrust/iterator/transform_iterator.h>
+#include <thrust/partition.h>
+#include <thrust/random.h>
+#include <thrust/extrema.h>
+#include <thrust/device_ptr.h>
 
 namespace hydra {
+
 
 template<size_t N, typename BACKEND>
 class Decays;
@@ -58,6 +66,7 @@ class Decays<N, hydra::detail::BackendPolicy<BACKEND> > {
 	typedef multiarray<4,GReal_t, hydra::detail::BackendPolicy<BACKEND> > particles_type;
 	typedef std::array<particles_type, N> decays_type;
 	typedef typename system_t::template container<GReal_t> weights_type;
+	typedef thrust::constant_iterator<GReal_t>      weight_one_iterator;
 
 	//pointers
 
@@ -79,6 +88,10 @@ class Decays<N, hydra::detail::BackendPolicy<BACKEND> > {
 	typedef typename  detail::tuple_cat_type<tuple_weights_const_iterator_type, tuple_particles_const_iterator_type>::type const_iterator_tuple;
 
 
+	typedef typename  thrust::tuple< weight_one_iterator> tuple_weight_one_iterator;
+	typedef typename  detail::tuple_cat_type<tuple_weight_one_iterator, tuple_particles_iterator_type>::type accpeted_iterator_tuple;
+
+
 	//reverse iterators
 	typedef typename  detail::tuple_type<N,typename particles_type::reverse_iterator>::type tuple_particles_riterator_type;
 	typedef typename  thrust::tuple<typename weights_type::reverse_iterator> tuple_weights_riterator_type;
@@ -87,6 +100,7 @@ class Decays<N, hydra::detail::BackendPolicy<BACKEND> > {
 	typedef typename  detail::tuple_type<N,typename particles_type::const_reverse_iterator>::type tuple_particles_const_riterator_type;
 	typedef typename  thrust::tuple<typename weights_type::const_reverse_iterator> tuple_weights_const_riterator_type;
 	typedef typename  detail::tuple_cat_type<tuple_weights_const_riterator_type, tuple_particles_const_riterator_type>::type const_reverse_iterator_tuple;
+
 
 public:
 
@@ -109,34 +123,32 @@ public:
 	//particles
 	typedef typename particles_type::iterator                                          particles_iterator;
 	typedef typename particles_type::const_iterator                                    particles_const_iterator;
-	typedef thrust::reverse_iterator<typename particles_type::reverse_iterator>        particles_reverse_iterator;
-	typedef thrust::reverse_iterator<typename particles_type::const_reverse_iterator>  particles_const_reverse_iterator;
+	typedef thrust::reverse_iterator<particles_iterator>                               particles_reverse_iterator;
+	typedef thrust::reverse_iterator<particles_const_iterator>                         particles_const_reverse_iterator;
 	typedef typename thrust::iterator_traits<particles_iterator>::difference_type      particles_difference_type;
 	typedef typename thrust::iterator_traits<particles_iterator>::value_type           particles_value_type;
-	typedef typename thrust::iterator_traits<particles_iterator>::pointer              particles_pointer;
 	typedef typename thrust::iterator_traits<particles_iterator>::reference            particles_reference;
 	typedef typename thrust::iterator_traits<particles_iterator>::iterator_category    particles_iterator_category;
-
-	//decays
-	typedef typename decays_type::iterator                                          decays_iterator;
-	typedef typename decays_type::const_iterator                                    decays_const_iterator;
-	typedef thrust::reverse_iterator<typename decays_type::reverse_iterator>        decays_reverse_iterator;
-	typedef thrust::reverse_iterator<typename decays_type::const_reverse_iterator>  decays_const_reverse_iterator;
-	typedef typename thrust::iterator_traits<decays_iterator>::difference_type      decays_difference_type;
-	typedef typename thrust::iterator_traits<decays_iterator>::value_type           decays_value_type;
-	typedef typename thrust::iterator_traits<decays_iterator>::pointer              decays_pointer;
-	typedef typename thrust::iterator_traits<decays_iterator>::reference            decays_reference;
-	typedef typename thrust::iterator_traits<decays_iterator>::iterator_category    decays_iterator_category;
 
 	//this container
 	//--------------------------------
 	//zipped iterators
+	typedef thrust::zip_iterator<accpeted_iterator_tuple> accpeted_iterator;
+
+
 	//direct
 	typedef thrust::zip_iterator<iterator_tuple> iterator;
 	typedef thrust::zip_iterator<const_iterator_tuple> const_iterator;
+
+	typedef thrust::zip_iterator<tuple_particles_iterator_type> decays_iterator;
+	typedef thrust::zip_iterator<tuple_particles_const_iterator_type> decays_const_iterator;
+
 	//reverse
 	typedef thrust::zip_iterator<reverse_iterator_tuple> reverse_iterator;
 	typedef thrust::zip_iterator<const_reverse_iterator_tuple> const_reverse_iterator;
+
+	typedef thrust::zip_iterator<tuple_particles_riterator_type> decays_reverse_iterator;
+	typedef thrust::zip_iterator<tuple_particles_const_riterator_type> decays_const_reverse_iterator;
 
 	//stl-like typedefs
 	typedef typename thrust::iterator_traits<iterator>::difference_type      difference_type;
@@ -150,19 +162,31 @@ public:
 	typedef typename  detail::tuple_cat_type<weights_const_pointer_type, particles_const_pointer_tuple_type>::type const_pointer_tuple;
 
 
+
+	/**
+	 * Default contstuctor
+	 */
 	Decays():
 		fDecays(decays_type()),
 		fWeights(weights_type())
 	{};
 
+	/**
+	 * Constructor with n decays.
+	 * @param n
+	 */
 	Decays(size_t n):
-	fDecays(decays_type()),
-	fWeights(weights_type(n))
+	fDecays(),
+	fWeights(n)
 	{
 		for( size_t i=0; i<N; i++)
 			fDecays[i].resize(n);
 	};
 
+	/**
+	 * Copy constructor.
+	 * @param other
+	 */
 	Decays(Decays<N,detail::BackendPolicy<BACKEND>> const& other ):
 	fDecays(other.GetDecays()),
 	fWeights(other.GetWeights())
@@ -174,36 +198,61 @@ public:
 		*/
 	}
 
+	/**
+	 * Move constructor.
+	 * @param other
+	 */
 	Decays(Decays<N,detail::BackendPolicy<BACKEND>>&& other ):
 		fDecays(other.MoveDecays()),
 		fWeights(other.MoveWeights())
 	{}
 
+	/**
+	 * Assignment operator.
+	 * @param other
+	 */
 	template< hydra::detail::Backend BACKEND2>
-	Decays(Decays<N,detail::BackendPolicy<BACKEND2>> const& other ):
-	fDecays(other.GetDecays()),
-	fWeights(other.GetWeights())
+	Decays(Decays<N,detail::BackendPolicy<BACKEND2>> const& other )
 	{
-		/*
-		fDecays = data_type();
+		fWeights = (weights_type(other.wbegin(), other.wend()));
+
 		for( size_t i=0; i<N; i++)
-			fDecays[i] = std::move( particles_type( other.begin(i), other.end(i) ) );
-			*/
+			fDecays[i] = std::move(particles_type(other.pbegin(i), other.pend(i)));
+
 	}
 
+	/**
+	 * Assignment operator.
+	 * @param other
+	 */
+	template<typename Iterator>
+	Decays( Iterator begin, Iterator end )
+	{
+		size_t n = thrust::distance(begin, end );
+		for( size_t i=0; i<N; i++)	fDecays[i].resize(n);
+		fWeights.resize(n);
+		thrust::copy(begin, end, this->begin());
+	}
+
+	/**
+	 * Assignment operator.
+	 * @param other
+	 */
 	Decays<N,detail::BackendPolicy<BACKEND>>&
 	operator=(Decays<N,detail::BackendPolicy<BACKEND>> const& other )
 	{
 		if(*this==&other) return *this;
 		this->fDecays  = other.GetDecays();
 		this->fWeights = other.GetWeights();
-		/*
-		for( size_t i=0; i<N; i++)
-			this->fDecays[i] = std::move(particles_type(other.begin(), other.end()));
-		 */
+
 		return *this;
 	}
 
+	/**
+	 * Move assignment operator.
+	 * @param other
+	 * @return
+	 */
 	Decays<N,detail::BackendPolicy<BACKEND>>&
 	operator=(Decays<N,detail::BackendPolicy<BACKEND> >&& other )
 	{
@@ -213,26 +262,248 @@ public:
 		return *this;
 	}
 
+	/**
+	 * Assignment operator.
+	 * @param other
+	 * @return
+	 */
 	template< hydra::detail::Backend BACKEND2>
 	Decays<N,detail::BackendPolicy<BACKEND> >&
 	operator=(Decays<N,detail::BackendPolicy<BACKEND2> > const& other )
 	{
 		if(*this==&other) return *this;
-		this->fDecays  = other.GetDecays();
-		this->fWeights = other.GetWeights();
-		/*
+		this->fWeights = std::move(weights_type(other.wbegin(), other.wend()));
+
 		for( size_t i=0; i<N; i++)
-			this->fDecays[i] = std::move( vector_t( other.begin(i), other.end(i) ) );
-			*/
+			this->fDecays[i] = std::move(particles_type(other.pbegin(i), other.pend(i)));
+
 		return *this;
 	}
 
-	//stl compliant interface
-	//-----------------------
+	/**
+	 * Add a decay to the container, increasing its size by one element.
+	 * @param w is the weight of the decay being added.
+	 * @param p is a tuple with N final state particles.
+	 */
+	void AddDecay(GReal_t w, const particle_tuple& p ){
+		this->push_back(w , p);
+	}
 
 	/**
-	 * @
+	 * Add a decay to the container, increasing its size by one element.
+	 * @param w is the weight of the decay being added.
+	 * @param p is an array with N final state particles.
 	 */
+	void AddDecay(GReal_t w, Vector4R const (&p)[N]){
+		this->push_back(w , p);
+	}
+
+	/**
+	 * Add a decay to the container, increasing its size by one element.
+	 * @param w is the weight of the decay being added.
+	 * @param p is a braced list with N final state particles.
+	 */
+	void AddDecay(GReal_t w, std::initializer_list<Vector4R>const& p){
+		this->push_back(w , p);
+	}
+
+	/**
+	 * Add a decay to the container, increasing its size by one element.
+	 * @param value is a hydra::tuple<double, Vector4R,...,Vector4R >
+	 *  = {weight, \f$p_1,...,p_N\f$}.
+	 */
+	void AddDecay(value_type const& value){
+		this->push_back(value);
+	}
+
+	/**
+	 * Get the range containing the particle number \f$i\f$.
+	 * @param i index of particle.
+	 * @return std::pair of iterators {begin, end}.
+	 */
+    hydra::pair<particles_iterator, particles_iterator>
+    GetParticles(size_t i){
+    	return hydra::make_pair(this->pbegin(i), this->pend(i));
+    }
+
+   /**
+    * Get a constant reference to the internal vector holding the particle i.
+    * Users can not resize or change the hold values. This method is most useful
+    * in python bindings to avoid exposition of iterators.
+    * @param i  index of the particle.
+    * @return reference to constant  particles_type.
+    */
+   const particles_type&  GetListOfParticles(size_t i) const {
+        	return fDecays[i];
+    }
+
+    /**
+     * Get the range containing the component particle number \f$i\f$.
+     * @param i Particle index.
+     * @param j Component index
+     * @return std::pair of iterators {begin, end}.
+     */
+    hydra::pair<particles_iterator, particles_iterator>
+    GetParticleComponents(size_t i, size_t j){
+      	return hydra::make_pair(this->pcbegin(i, j), this->pcend(i, j));
+      }
+
+    const typename particles_type::vector_type&
+    GetListOfParticleComponents(size_t i, size_t j){
+          	return fDecays[i].column(j);
+    }
+
+    /**
+     * Get a reference a decay.
+     * @param i index of the decay.
+     * @return reference a decay
+     */
+    reference GetDecay(size_t i){
+    	return this->begin()[i];
+    }
+
+    /**
+     * Get a constant reference a decay.
+     * @param i index of the decay.
+     * @return reference a decay
+     */
+    reference GetDecay(size_t i) const {
+    	return this->begin()[i];
+    }
+
+    /**
+     * Get a range pointing to a set of unweighted events.
+     * This method will re-order the container to group together
+     * accepted events and return a pair of iterators with ready-only
+     * access to container.
+     *
+     * @return std::pair with iterators pointing to a range of unweigted
+     * particles.
+     */
+    hydra::pair<accpeted_iterator, accpeted_iterator>
+    Unweight(GUInt_t scale=1.0);
+
+    /**
+     * Get a range pointing to a set of unweighted events.
+     * This method will re-order the container to group together
+     * accepted events and return a pair of iterators with ready-only
+     * access to container. This version takes a functor as argument
+     * and will produce a range of unweighted events distributed
+     * accordingly. This method does not change the size, the
+     * stored events or its weights.
+     * The functor needs derive from hydra::BaseFunctor or be a lambda wrapped
+     * using hydra::wrap_lambda function.
+     * The functor signature needs to provide
+     * the method Evaluate(size_t n, hydra::Vector4R*), for example:
+     * @code{.cpp}
+     * ...
+     * struct BreitWigner: public hydra::BaseFunctor<BreitWigner, double, 0>
+     * ...
+     * double Evaluate(size_t n, hydra::Vector4R* particles)
+     * {
+     *   Vector4R p1 = particles[0];
+     *   Vector4R p2 = particles[1];
+     *
+     *   return  breit_wigner(p1,p2);
+     * }
+     * ...
+     * };
+     * @endcode
+     * The same is is valid for a lambda function:
+     *
+     * @code{.cpp}
+     * ...
+     *
+     * double mass  = ...;
+     * double width = ...;
+     *
+     * auto bw = [ ]__host__ __device__(size_t n, hydra::Vector4R* particles )
+     * {
+     * auto   p0  = particles[0] ;
+     * auto   p1  = particles[1] ;
+     * auto   p2  = particles[2] ;
+     *
+     * auto   m = (p1+p2).mass();
+     *
+     * double denominator = (m12-0.895)*(m12-0.895) + (0.055*0.055)/4.0;
+     *
+     * return ((0.055*0.055)/4.0)/denominator;
+     *
+     * };
+     *
+	 *auto breit_wigner = hydra::wrap_lambda(bw);
+	 *@endcode
+     *
+     * Obs: the functor need be positive evaluated for all events
+     * in the phase-space.
+     *
+     * @tparam Functor enclosing a positive evaluated function.
+     * @return std::pair with iterators pointing to a range of unweigted
+     * particles.
+     */
+    template<typename FUNCTOR>
+    hydra::pair<accpeted_iterator, accpeted_iterator>
+    Unweight( FUNCTOR  const& functor, GUInt_t scale);
+
+    /**
+     * Recalculates the events weights according with @functor;
+     * The new weights are the \f$ w_{i}^{new} = w_{i}^{old} \times functor(Vector4R*...)\f$
+     * * The functor needs derive from hydra::BaseFunctor or be a lambda wrapped
+     * using hydra::wrap_lambda function.
+     * The functor signature needs to provide
+     * the method Evaluate(size_t n, hydra::Vector4R*), for example:
+     * @code{.cpp}
+     * ...
+     * struct BreitWigner: public hydra::BaseFunctor<BreitWigner, double, 0>
+     * ...
+     * double Evaluate(size_t n, hydra::Vector4R* particles)
+     * {
+     *   Vector4R p1 = particles[0];
+     *   Vector4R p2 = particles[1];
+     *
+     *   return  breit_wigner(p1,p2);
+     * }
+     * ...
+     * };
+     * @endcode
+     * The same is is valid for a lambda function:
+     *
+     * @code{.cpp}
+     * ...
+     *
+     * double mass  = ...;
+     * double width = ...;
+     *
+     * auto bw = [ ]__host__ __device__(size_t n, hydra::Vector4R* particles )
+     * {
+     * auto   p0  = particles[0] ;
+     * auto   p1  = particles[1] ;
+     * auto   p2  = particles[2] ;
+     *
+     * auto   m = (p1+p2).mass();
+     *
+     * double denominator = (m12-0.895)*(m12-0.895) + (0.055*0.055)/4.0;
+     *
+     * return ((0.055*0.055)/4.0)/denominator;
+     *
+     * };
+     *
+	 *auto breit_wigner = hydra::wrap_lambda(bw);
+	 *@endcode
+     *
+     * Obs: the functor need be positive evaluated for all events
+     * in the phase-space.
+     *
+     * @tparam Functor enclosing a positive evaluated function.
+     * particles.
+     * @param functor
+     */
+    template<typename FUNCTOR>
+    void Reweight( FUNCTOR  const& functor);
+
+
+    //stl compliant interface
+	//-----------------------
 	inline void pop_back();
 
 	inline void push_back(GReal_t weight, const particle_tuple& particles);
@@ -257,8 +528,6 @@ public:
 
 	bool empty() const;
 
-
-
 	iterator erase(iterator pos);
 
 	iterator erase(iterator first, iterator last);
@@ -279,9 +548,9 @@ public:
 
 	const_reference back() const;
 
-	particles_pointer pdata( size_t particle, size_t component );
+	typename particles_type::vpointer pcdata( size_t particle, size_t component );
 
-	particles_pointer pdata( size_t particle, size_t component ) const;
+	typename particles_type::vpointer pcdata( size_t particle, size_t component ) const;
 
     weights_pointer wdata( );
 
@@ -316,6 +585,14 @@ public:
 
 
 	//non-constant access
+	decays_iterator pbegin();
+
+	decays_iterator pend();
+
+	decays_reverse_iterator prbegin();
+
+	decays_reverse_iterator prend();
+
 	particles_iterator pbegin(size_t i);
 
 	particles_iterator pend(size_t i);
@@ -333,6 +610,15 @@ public:
 	weights_reverse_iterator wrend();
 
 	//constant access const
+	decays_const_iterator pbegin() const;
+
+	decays_const_iterator pend() const;
+
+	decays_const_reverse_iterator prbegin() const;
+
+	decays_const_reverse_iterator prend() const;
+
+
     particles_const_iterator pbegin(size_t i) const;
 
     particles_const_iterator pend(size_t i) const;
@@ -356,7 +642,11 @@ public:
 	inline const_reference operator[](size_t n) const
 	{	return cbegin()[n]; }
 
+
+
 private:
+
+
 
 	template<size_t I >
 	inline typename thrust::detail::enable_if<(I == N), void >::type
@@ -371,14 +661,14 @@ private:
 	    do_insert<I+1>(pos, output_iterator, value );
 	}
 
-	template<size_t I, typename InputIterator >
+	template<size_t I,  template<typename ...> class Tuple, typename ...Iterators >
 	inline typename thrust::detail::enable_if<(I == N), void >::type
-	do_insert(size_t pos, InputIterator first, InputIterator last )
+	do_insert(size_t pos, Tuple<Iterators...>  first, Tuple<Iterators...> last )
 	{}
 
-	template<size_t I = 0, typename InputIterator >
+	template<size_t I = 0,  template<typename ...> class Tuple, typename ...Iterators >
 	inline typename thrust::detail::enable_if<(I < N), void >::type
-	do_insert(size_t pos, InputIterator first, InputIterator last )
+	do_insert(size_t pos, Tuple<Iterators...> first, Tuple<Iterators...> last )
 	{
 		fDecays[I].insert(fDecays[I].begin()+pos, get<I+1>(first.get_iterator_tuple()),
 				get<I+1>(last.get_iterator_tuple()));
@@ -398,7 +688,18 @@ private:
 		do_push_back<I+1>( value );
 	}
 
+	template<size_t I >
+	inline typename thrust::detail::enable_if<(I == N), void >::type
+	do_assignment(accpeted_iterator_tuple& left, iterator_tuple& right  )
+	{}
 
+	template<size_t I = 1>
+	inline typename thrust::detail::enable_if<(I < N), void >::type
+	do_assignment(accpeted_iterator_tuple& left, iterator_tuple& right  )
+	{
+		get<I>(left)= get<I>(right);
+		do_assignment<I+1>(left, right );
+	}
 
 
 	 const decays_type& GetDecays() const
